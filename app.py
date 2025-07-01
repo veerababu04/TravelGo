@@ -12,8 +12,8 @@ app.secret_key = 'your_secret_key_here'
 
 # AWS Setup using IAM Role
 REGION = 'ap-south-1'  # Replace with your actual AWS region
-dynamodb = boto3.resource('dynamodb', region_name= us-east-1)
-sns_client = boto3.client('sns', region_name= us-easr-1)
+dynamodb = boto3.resource('dynamodb', region_name= 'us-east-1')
+sns_client = boto3.client('sns', region_name= 'us-east-1')
 
 users_table = dynamodb.Table('travelgo_users')
 trains_table = dynamodb.Table('trains')
