@@ -12,14 +12,14 @@ app.secret_key = 'your_secret_key_here'
 
 # AWS Setup using IAM Role
 REGION = 'ap-south-1'  # Replace with your actual AWS region
-dynamodb = boto3.resource('dynamodb', region_name=REGION)
-sns_client = boto3.client('sns', region_name=REGION)
+dynamodb = boto3.resource('dynamodb', region_name= us-east-1)
+sns_client = boto3.client('sns', region_name= us-easr-1)
 
 users_table = dynamodb.Table('travelgo_users')
 trains_table = dynamodb.Table('trains')
 bookings_table = dynamodb.Table('bookings')
 
-SNS_TOPIC_ARN = 'arn:aws:sns:ap-south-1:353250843450:TravelGoBookingTopic'  # Replace with actual SNS topic ARN
+SNS_TOPIC_ARN = 'arn:aws:sns:us-east-1:980921720508:Travelgo2:520aeb74-84e4-4c8d-b00c-d14d67edf019'  # Replace with actual SNS topic ARN
 
 def send_sns_notification(subject, message):
     try:
