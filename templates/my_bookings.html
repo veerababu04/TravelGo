@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}My Bookings — TravelGo{% endblock %}
+
+{% block extra_style %}
+<style>
+  .page-header { padding:32px 5% 0; }
+  .page-header h1 { font-size:1.6rem; font-weight:800; margin-bottom:6px; }
+  .page-header p  { color:var(--muted); font-size:.9rem; }
+
+  .bookings-wrap { padding:24px 5% 60px; }
+
+  .empty-state {
+    text-align:center; padding:80px 20px;
+    background:rgba(255,255,255,.03); border:1px solid var(--border);
+    border-radius:16px;
+  }
+  .empty-state .icon { font-size:3.5rem; margin-bottom:18px; }
+  .empty-state h3 { font-size:1.2rem; font-weight:700; margin-bottom:8px; }
+  .empty-state p  { color:var(--muted); font-size:.9rem; margin-bottom:24px; }
+
+  .booking-card {
+    background:rgba(255,255,255,.04);
+    border:1px solid var(--border);
+    border-radius:12px; margin-bottom:16px;
+    overflow: hidden; transition:border-color .2s;
+  }
+  .booking-card:hover { border-color:rgba(14,165,233,.3); }
+
+  .booking-top {
+    padding:20px 24px;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    flex-wrap:wrap; gap:12px;
+    border-bottom:1px solid var(--border);
+  }
+  .booking-id-tag { font-size:.72rem; color:var(--muted); margin-bottom:6px; }
+  .booking-name   { font-size:1rem; font-weight:700; }
+
+  .booking-route {
+    display:flex; align-items:center; gap:14px;
+    padding:18px 24px; flex-wrap:wrap;
+  }
+  .br-time  { font-size:1.2rem; font-weight:800; }
+  .br-city  { font-size:.75rem; color:var(--muted); margin-top:3px; }
+  .br-arrow { color:var(--teal); font-size:.9rem; flex:1; text-align:center; }
+
+  .booking-footer {
+    padding:14px 24px;
+    background:rgba(255,255,255,.02);
+    display:flex; justify-content:space-between; align-items:center;
+    flex-wrap:wrap; gap:10px;
+    border-top:1px solid var(--border);
+  }
+  .booking-meta { display:flex; gap:16px; flex-wrap:wrap; font-size:.8rem; color:var(--muted); }
+  .booking-meta span { display:flex; align-items:center; gap:4px; }
+  .booking-price { font-size:1.1rem; font-weight:800; color:var(--teal); }
+
+  .booking-actions { display:flex; gap:8px; }
+
+  /* Type color bar */
+  .type-bar { height:4px; }
+  .type-bar.train  { background:var(--teal); }
+  .type-bar.bus    { background:var(--orange); }
+  .type-bar.flight { background:#a855f7; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>🎫 My Bookings</h1>
+  <p>All your travel bookings in one place.</p>
+</div>
+
+<div class="bookings-wrap">
+  {% if bookings %}
+    <div style="font-size:.85rem;color:var(--muted);margin-bottom:16px;">
+      {{ bookings|length }} booking{{ 's' if bookings|length > 1 }}
+    </div>
+
+    {% for b in bookings|reverse %}
+    <div class="booking-card">
+      <div class="type-bar {{ b.travel_type }}"></div>
+
+      <div class="booking-top">
+        <div>
+          <div class="booking-id-tag">
+            {% if b.travel_type=='train' %}🚆{% elif b.travel_type=='bus' %}🚌{% else %}✈️{% endif %}
+            {{ b.travel_type|upper }} &nbsp;·&nbsp; {{ b.booking_id }}
+          </div>
+          <div class="booking-name">{{ b.vehicle_name }}</div>
+        </div>
+        <span class="badge badge-green">✓ Confirmed</span>
+      </div>
+
+      <div class="booking-route">
+        <div>
+          <div class="br-time">{{ b.dep }}</div>
+          <div class="br-city">{{ b.from_city }}</div>
+        </div>
+        <div class="br-arrow">
+          ── {{ b.duration }} ──▶
+        </div>
+        <div>
+          <div class="br-time">{{ b.arr }}</div>
+          <div class="br-city">{{ b.to_city }}</div>
+        </div>
+      </div>
+
+      <div class="booking-footer">
+        <div class="booking-meta">
+          <span><i class="far fa-calendar-alt"></i> {{ b.date }}</span>
+          <span><i class="fas fa-users"></i> {{ b.passengers }} pax</span>
+          <span><i class="fas fa-tag"></i> {{ b.seat_class }}</span>
+          <span><i class="fas fa-user"></i> {{ b.passenger_name }}</span>
+          <span><i class="far fa-clock"></i> Booked {{ b.booked_at }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;">
+          <div class="booking-price">₹{{ b.total_price|int }}</div>
+          <div class="booking-actions">
+            <form action="/cancel/{{ b.booking_id }}" method="POST"
+                  onsubmit="return confirm('Cancel booking {{ b.booking_id }}? This cannot be undone.')">
+              <button type="submit" class="btn btn-red" style="padding:7px 14px;font-size:.8rem;">
+                <i class="fas fa-times"></i> Cancel
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+    <div style="margin-top:28px;">
+      <a href="/" class="btn btn-teal"><i class="fas fa-plus"></i> Book Another Trip</a>
+    </div>
+
+  {% else %}
+    <div class="empty-state">
+      <div class="icon">🗺️</div>
+      <h3>No bookings yet</h3>
+      <p>You haven't booked any trips. Start exploring and book your first journey!</p>
+      <a href="/" class="btn btn-teal"><i class="fas fa-search"></i> Search & Book Now</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

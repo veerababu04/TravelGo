@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% block title %}TravelGo — Book Trains, Buses & Flights{% endblock %}
+
+{% block extra_style %}
+<style>
+  /* Hero */
+  .hero {
+    background: linear-gradient(135deg, #0a1628 0%, #0f2340 50%, #0a1628 100%);
+    padding: 70px 5% 60px;
+    position: relative; overflow: hidden;
+    text-align: center;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; top:-150px; left:50%; transform:translateX(-50%);
+    width:700px; height:700px;
+    background: radial-gradient(circle, rgba(14,165,233,.12) 0%, transparent 65%);
+    pointer-events:none;
+  }
+  .hero-badge {
+    display:inline-block; margin-bottom:18px;
+    font-size:.78rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--teal); background:rgba(14,165,233,.1);
+    border:1px solid rgba(14,165,233,.25); border-radius:20px; padding:5px 16px;
+  }
+  .hero h1 {
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight:800; line-height:1.15;
+    margin-bottom:14px;
+  }
+  .hero h1 span { color:var(--teal); }
+  .hero p { font-size:1rem; color:var(--muted); max-width:500px; margin:0 auto 36px; line-height:1.7; }
+
+  /* Search box */
+  .search-box {
+    background:rgba(255,255,255,.05);
+    border:1px solid var(--border);
+    border-radius:16px; padding:32px 36px;
+    max-width:860px; margin:0 auto;
+    backdrop-filter:blur(10px);
+  }
+
+  /* Tab bar */
+  .type-tabs { display:flex; gap:8px; margin-bottom:28px; justify-content:center; }
+  .type-tab {
+    display:flex; align-items:center; gap:7px;
+    padding:9px 22px; border-radius:8px;
+    background:rgba(255,255,255,.04);
+    border:1px solid var(--border);
+    color:var(--muted); font-size:.88rem; font-weight:600;
+    cursor:pointer; transition:.2s; user-select:none;
+  }
+  .type-tab.active { background:var(--teal); color:#fff; border-color:var(--teal); }
+  .type-tab i { font-size:.95rem; }
+
+  .search-grid {
+    display:grid;
+    grid-template-columns: 1fr 1fr 1fr 120px 120px;
+    gap:14px; align-items:end;
+  }
+  @media(max-width:768px){ .search-grid{ grid-template-columns:1fr 1fr; } }
+
+  /* Stats */
+  .stats {
+    display:flex; justify-content:center; gap:48px;
+    padding:36px 5%; flex-wrap:wrap;
+    border-bottom:1px solid var(--border);
+  }
+  .stat { text-align:center; }
+  .stat-num { font-size:1.7rem; font-weight:800; color:var(--teal); }
+  .stat-label { font-size:.8rem; color:var(--muted); margin-top:4px; }
+
+  /* Features */
+  .features { padding:60px 5%; }
+  .features-title { text-align:center; font-size:1.6rem; font-weight:800; margin-bottom:36px; }
+  .features-title span { color:var(--teal); }
+  .features-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:20px; }
+  .feature-card {
+    background:rgba(255,255,255,.03);
+    border:1px solid var(--border); border-radius:12px;
+    padding:24px 20px; text-align:center;
+    transition:.2s;
+  }
+  .feature-card:hover { border-color:rgba(14,165,233,.3); transform:translateY(-3px); }
+  .feature-icon { font-size:2rem; margin-bottom:12px; }
+  .feature-card h4 { font-size:.95rem; font-weight:700; margin-bottom:6px; }
+  .feature-card p { font-size:.82rem; color:var(--muted); line-height:1.6; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero + Search -->
+<div class="hero">
+  <span class="hero-badge">🇮🇳 India's Smart Travel Platform</span>
+  <h1>Book Your Journey <span>Smarter</span></h1>
+  <p>Search trains, buses & flights across 30 cities. Fast booking, instant confirmation.</p>
+
+  <div class="search-box">
+    <!-- Type Tabs -->
+    <div class="type-tabs">
+      <div class="type-tab active" data-type="train" onclick="setType('train',this)">
+        <i class="fas fa-train"></i> Train
+      </div>
+      <div class="type-tab" data-type="bus" onclick="setType('bus',this)">
+        <i class="fas fa-bus"></i> Bus
+      </div>
+      <div class="type-tab" data-type="flight" onclick="setType('flight',this)">
+        <i class="fas fa-plane"></i> Flight
+      </div>
+    </div>
+
+    <form action="/search" method="POST">
+      <input type="hidden" name="travel_type" id="travel_type" value="train"/>
+      <div class="search-grid">
+        <div class="form-group">
+          <label>From</label>
+          <select name="from_city" class="form-control" required>
+            <option value="">Select City</option>
+            {% for s in stations %}
+            <option value="{{ s }}">{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>To</label>
+          <select name="to_city" class="form-control" required>
+            <option value="">Select City</option>
+            {% for s in stations %}
+            <option value="{{ s }}">{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" name="travel_date" class="form-control" required
+                 min="{{ today }}" id="travel_date"/>
+        </div>
+        <div class="form-group">
+          <label>Passengers</label>
+          <select name="passengers" class="form-control">
+            {% for i in range(1,7) %}
+            <option value="{{ i }}">{{ i }} Passenger{{ 's' if i>1 }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>&nbsp;</label>
+          <button type="submit" class="btn btn-teal" style="width:100%;justify-content:center;">
+            <i class="fas fa-search"></i> Search
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats">
+  <div class="stat"><div class="stat-num">30+</div><div class="stat-label">Cities Connected</div></div>
+  <div class="stat"><div class="stat-num">3</div><div class="stat-label">Travel Modes</div></div>
+  <div class="stat"><div class="stat-num">1M+</div><div class="stat-label">Bookings Done</div></div>
+  <div class="stat"><div class="stat-num">24/7</div><div class="stat-label">Support</div></div>
+</div>
+
+<!-- Features -->
+<div class="features">
+  <h2 class="features-title">Why Choose <span>TravelGo</span>?</h2>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">⚡</div>
+      <h4>Instant Booking</h4>
+      <p>Book in under 60 seconds. Confirmation generated instantly.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🗺️</div>
+      <h4>30 Cities</h4>
+      <p>All major Indian cities connected by train, bus and flight.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎫</div>
+      <h4>Easy Management</h4>
+      <p>View, track and cancel your bookings from one dashboard.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">💰</div>
+      <h4>Best Prices</h4>
+      <p>Competitive fares across all modes of transport.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔒</div>
+      <h4>Secure</h4>
+      <p>Your data and payments are always safe with us.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Set today as min date
+  document.getElementById('travel_date').value = new Date().toISOString().split('T')[0];
+
+  function setType(type, el) {
+    document.getElementById('travel_type').value = type;
+    document.querySelectorAll('.type-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+  }
+</script>
+{% endblock %}

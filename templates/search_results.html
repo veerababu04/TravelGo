@@ -1,0 +1,424 @@
+{% extends "base.html" %}
+{% block title %}{{ travel_type|title }} Results — {{ frm }} → {{ to }}{% endblock %}
+
+{% block extra_style %}
+<style>
+  .results-header {
+    background: linear-gradient(135deg, #0f2340, #0a1628);
+    padding: 32px 5%;
+    border-bottom: 1px solid var(--border);
+  }
+  .breadcrumb { font-size:.82rem; color:var(--muted); margin-bottom:10px; }
+  .breadcrumb a { color:var(--teal); text-decoration:none; }
+  .route-title { font-size:1.5rem; font-weight:800; display:flex; align-items:center; gap:14px; }
+  .route-title .arrow { color:var(--teal); font-size:1.2rem; }
+  .route-meta { margin-top:8px; font-size:.85rem; color:var(--muted); display:flex; gap:20px; flex-wrap:wrap; }
+  .route-meta span { display:flex; align-items:center; gap:5px; }
+
+  .results-body { display:grid; grid-template-columns:240px 1fr; gap:24px; padding:32px 5%; align-items:start; }
+  @media(max-width:768px){ .results-body{ grid-template-columns:1fr; } }
+
+  /* Sidebar filter */
+  .filter-box { background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:12px; padding:22px; position:sticky; top:80px; }
+  .filter-box h4 { font-size:.85rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:16px; }
+  .filter-option { display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:.88rem; cursor:pointer; }
+  .filter-option input { accent-color:var(--teal); }
+  .price-range { width:100%; accent-color:var(--teal); margin:10px 0; }
+
+  /* Result cards */
+  .result-count { font-size:.88rem; color:var(--muted); margin-bottom:16px; }
+  .result-count strong { color:var(--white); }
+
+  .ticket-card {
+    background:rgba(255,255,255,.04);
+    border:1px solid var(--border);
+    border-radius:12px; padding:22px 26px;
+    margin-bottom:16px;
+    transition:border-color .2s, transform .15s;
+    position:relative; overflow:hidden;
+  }
+  .ticket-card::before {
+    content:''; position:absolute; left:0; top:0; bottom:0;
+    width:4px;
+  }
+  .ticket-card.train::before  { background:#0ea5e9; }
+  .ticket-card.bus::before    { background:#f97316; }
+  .ticket-card.flight::before { background:#a855f7; }
+  .ticket-card:hover { border-color:rgba(14,165,233,.35); transform:translateX(3px); }
+
+  .ticket-top { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; }
+  .ticket-name { font-size:1rem; font-weight:700; margin-bottom:4px; }
+  .ticket-id   { font-size:.75rem; color:var(--muted); }
+
+  .ticket-route { display:flex; align-items:center; gap:16px; margin:14px 0; }
+  .ticket-time  { text-align:center; }
+  .ticket-time .time   { font-size:1.3rem; font-weight:800; }
+  .ticket-time .city   { font-size:.75rem; color:var(--muted); margin-top:2px; }
+  .ticket-connector    { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .ticket-connector .dur { font-size:.75rem; color:var(--muted); }
+  .ticket-connector .line{ height:2px; width:100%; background:var(--border); position:relative; }
+  .ticket-connector .line::after { content:''; position:absolute; right:-4px; top:-4px; width:8px; height:8px; border-right:2px solid var(--teal); border-top:2px solid var(--teal); transform:rotate(45deg); }
+
+  .ticket-bottom { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:4px; }
+  .ticket-tags { display:flex; gap:8px; flex-wrap:wrap; }
+  .ticket-price { text-align:right; }
+  .ticket-price .amount { font-size:1.4rem; font-weight:800; color:var(--teal); }
+  .ticket-price .per    { font-size:.75rem; color:var(--muted); }
+
+  /* Star rating */
+  .rating { font-size:.75rem; color:#fbbf24; }
+
+  #showResultsBtn {
+    transition: all .2s;
+    margin-top: 4px;
+  }
+  #showResultsBtn:hover {
+    box-shadow: 0 0 12px rgba(14,165,233,.45);
+    transform: translateY(-1px);
+  }
+
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:500; align-items:center; justify-content:center; }
+  .modal-overlay.open { display:flex; }
+  .modal-box {
+    background:#0f2040; border:1px solid var(--border);
+    border-radius:16px; padding:32px; width:100%; max-width:520px;
+    max-height:90vh; overflow-y:auto;
+    animation: slideUp .25s ease;
+  }
+  @keyframes slideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+  .modal-title { font-size:1.1rem; font-weight:800; margin-bottom:22px; display:flex; justify-content:space-between; align-items:center; }
+  .modal-grid  { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .modal-close { background:none; border:none; color:var(--muted); font-size:1.2rem; cursor:pointer; }
+  .modal-close:hover { color:var(--white); }
+  .trip-summary {
+    background:rgba(14,165,233,.07); border:1px solid rgba(14,165,233,.2);
+    border-radius:8px; padding:14px 16px; margin-bottom:20px;
+    font-size:.88rem; color:#bae6fd;
+  }
+  .trip-summary strong { color:var(--white); }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="results-header">
+  <div class="breadcrumb">
+    <a href="/">Home</a> / <a href="/">Search</a> / Results
+  </div>
+  <div class="route-title">
+    {% if travel_type == 'train' %}<i class="fas fa-train" style="color:var(--teal)"></i>
+    {% elif travel_type == 'bus' %}<i class="fas fa-bus" style="color:var(--orange)"></i>
+    {% else %}<i class="fas fa-plane" style="color:#a855f7"></i>{% endif %}
+    {{ frm }}
+    <span class="arrow">→</span>
+    {{ to }}
+  </div>
+  <div class="route-meta">
+    <span><i class="far fa-calendar"></i> {{ date }}</span>
+    <span><i class="fas fa-users"></i> {{ passengers }} Passenger{{ 's' if passengers > 1 }}</span>
+    <span><i class="fas fa-tag"></i> {{ travel_type|title }}</span>
+    <span><i class="fas fa-list"></i> {{ results|length }} results</span>
+  </div>
+</div>
+
+<div class="results-body">
+  <!-- Filter Sidebar -->
+  <div class="filter-box">
+    <h4><i class="fas fa-sliders-h"></i> Filters</h4>
+    <div class="divider" style="margin:12px 0;"></div>
+
+    <h4 style="margin-bottom:10px;">Departure</h4>
+    <label class="filter-option">
+      <input type="checkbox" class="dep-filter" value="early" checked> Early Morning
+      <span style="font-size:.72rem;color:var(--muted);">00:00–06:00</span>
+    </label>
+    <label class="filter-option">
+      <input type="checkbox" class="dep-filter" value="morning" checked> Morning
+      <span style="font-size:.72rem;color:var(--muted);">06:00–12:00</span>
+    </label>
+    <label class="filter-option">
+      <input type="checkbox" class="dep-filter" value="afternoon" checked> Afternoon
+      <span style="font-size:.72rem;color:var(--muted);">12:00–18:00</span>
+    </label>
+    <label class="filter-option">
+      <input type="checkbox" class="dep-filter" value="evening" checked> Evening
+      <span style="font-size:.72rem;color:var(--muted);">18:00–23:59</span>
+    </label>
+
+    <div class="divider" style="margin:16px 0;"></div>
+    <h4 style="margin-bottom:10px;">Price Range</h4>
+    <input type="range" class="price-range" id="priceRange" min="0" max="15000" value="15000"
+           oninput="document.getElementById('priceLabel').textContent='₹0 – ₹'+parseInt(this.value).toLocaleString('en-IN')">
+    <div style="font-size:.8rem;color:var(--muted);margin-top:4px;" id="priceLabel">₹0 – ₹15,000</div>
+
+    <div class="divider" style="margin:16px 0;"></div>
+    <h4 style="margin-bottom:10px;">Available Seats</h4>
+    <label class="filter-option"><input type="radio" name="seats-filter" value="any" checked> Any seats</label>
+    <label class="filter-option"><input type="radio" name="seats-filter" value="5"> 5+ seats</label>
+    <label class="filter-option"><input type="radio" name="seats-filter" value="10"> 10+ seats</label>
+
+    <div class="divider" style="margin:16px 0;"></div>
+    <button class="btn btn-teal" id="showResultsBtn" onclick="applyFilters()"
+      style="width:100%;justify-content:center;font-size:.9rem;padding:11px;">
+      <i class="fas fa-search"></i> Show Results
+    </button>
+    <button class="btn btn-ghost" onclick="resetFilters()"
+      style="width:100%;justify-content:center;font-size:.85rem;padding:9px;margin-top:8px;">
+      <i class="fas fa-undo"></i> Reset
+    </button>
+  </div>
+
+  <!-- Results -->
+  <div>
+    <div class="result-count">
+      Showing <strong>{{ results|length }} {{ travel_type }}s</strong> from {{ frm }} to {{ to }}
+    </div>
+
+    {% for r in results %}
+    <div class="ticket-card {{ travel_type }}" data-price="{{ r.price }}" data-dep="{{ r.dep }}" data-seats="{{ r.seats }}">
+      <div class="ticket-top">
+        <div>
+          <div class="ticket-name">
+            {% if travel_type == 'train' %}🚆{% elif travel_type == 'bus' %}🚌{% else %}✈️{% endif %}
+            {{ r.name }}
+            {% if travel_type == 'flight' %}<span style="font-size:.75rem;color:var(--muted);margin-left:6px;">{{ r.flight_no }}</span>{% endif %}
+          </div>
+          <div class="ticket-id">
+            ID: {{ r.id }} &nbsp;·&nbsp;
+            {% if travel_type == 'train' %}
+              <span class="badge badge-teal">{{ r.seat_class }}</span>
+            {% elif travel_type == 'bus' %}
+              <span class="badge badge-orange">{{ r.seat_class }}</span>
+            {% else %}
+              <span class="badge" style="background:rgba(168,85,247,.15);color:#c084fc;border:1px solid rgba(168,85,247,.3);">{{ r.seat_class }}</span>
+            {% endif %}
+            &nbsp;·&nbsp;
+            <span class="rating">★ {{ r.rating }}</span>
+          </div>
+        </div>
+        <div style="font-size:.82rem;color:var(--muted);">
+          <i class="fas fa-chair"></i> {{ r.seats }} seats left
+        </div>
+      </div>
+
+      <div class="ticket-route">
+        <div class="ticket-time">
+          <div class="time">{{ r.dep }}</div>
+          <div class="city">{{ r.from }}</div>
+        </div>
+        <div class="ticket-connector">
+          <div class="dur">{{ r.duration }}</div>
+          <div class="line"></div>
+        </div>
+        <div class="ticket-time">
+          <div class="time">{{ r.arr }}</div>
+          <div class="city">{{ r.to }}</div>
+        </div>
+      </div>
+
+      <div class="ticket-bottom">
+        <div class="ticket-tags">
+          <span class="badge badge-green">Available</span>
+          <span style="font-size:.78rem;color:var(--muted);"><i class="far fa-calendar-alt"></i> {{ r.date }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;">
+          <div class="ticket-price">
+            <div class="amount">₹{{ r.price }}</div>
+            <div class="per">per person</div>
+          </div>
+          {% if travel_type == 'flight' %}
+          {% set flno = r.flight_no %}
+          {% else %}
+          {% set flno = '' %}
+          {% endif %}
+          <button class="btn btn-teal"
+            onclick="openModal('{{ r.id }}','{{ r.name }}','{{ r.dep }}','{{ r.arr }}','{{ r.duration }}','{{ r.price }}','{{ r.from }}','{{ r.to }}','{{ r.date }}','{{ r.seat_class }}','{{ flno }}')">
+            Book Now <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+    {% if not results %}
+    <div class="card" style="text-align:center;padding:48px;">
+      <div style="font-size:3rem;margin-bottom:16px;">😔</div>
+      <h3>No {{ travel_type }}s found</h3>
+      <p style="color:var(--muted);margin-top:8px;">Try different dates or cities.</p>
+      <a href="/" class="btn btn-ghost" style="margin-top:16px;">← Back to Search</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Book Modal -->
+<div class="modal-overlay" id="bookModal">
+  <div class="modal-box">
+    <div class="modal-title">
+      <span>🎫 Passenger Details</span>
+      <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+    </div>
+
+    <div class="trip-summary" id="tripSummary"></div>
+
+    <form action="/book" method="POST">
+      <input type="hidden" name="travel_id"    id="modal_id"/>
+      <input type="hidden" name="travel_type"  value="{{ travel_type }}"/>
+      <input type="hidden" name="vehicle_name" id="modal_name"/>
+      <input type="hidden" name="flight_no"    id="modal_flightno"/>
+      <input type="hidden" name="from_city"    value="{{ frm }}"/>
+      <input type="hidden" name="to_city"      value="{{ to }}"/>
+      <input type="hidden" name="travel_date"  id="modal_date"/>
+      <input type="hidden" name="dep"          id="modal_dep"/>
+      <input type="hidden" name="arr"          id="modal_arr"/>
+      <input type="hidden" name="duration"     id="modal_dur"/>
+      <input type="hidden" name="price"        id="modal_price"/>
+      <input type="hidden" name="seat_class"   id="modal_class"/>
+
+      <div class="modal-grid">
+        <div class="form-group" style="grid-column:1/-1;">
+          <label>Full Name</label>
+          <input type="text" name="passenger_name" class="form-control" placeholder="e.g. Veera Babu N" required/>
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" name="passenger_email" class="form-control" placeholder="you@email.com" required/>
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="tel" name="passenger_phone" class="form-control" placeholder="+91 9XXXXXXXXX" required/>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label>No. of Passengers</label>
+          <select name="passengers" class="form-control" id="modal_pax" onchange="updateTotal()">
+            {% for i in range(1,7) %}
+            <option value="{{ i }}">{{ i }} Passenger{{ 's' if i>1 }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div style="background:rgba(14,165,233,.07);border:1px solid rgba(14,165,233,.2);border-radius:8px;padding:14px 16px;margin:18px 0;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:.88rem;color:var(--muted);">Total Amount</span>
+        <span style="font-size:1.3rem;font-weight:800;color:var(--teal);" id="totalAmount">₹0</span>
+      </div>
+
+      <button type="submit" class="btn btn-teal" style="width:100%;justify-content:center;font-size:.95rem;padding:13px;">
+        <i class="fas fa-check-circle"></i> Confirm Booking
+      </button>
+    </form>
+  </div>
+</div>
+
+<script>
+/* ── Filter Logic ── */
+function getDepSlot(timeStr) {
+  // timeStr like "05:00" or "14:30"
+  const [h, m] = timeStr.split(':').map(Number);
+  const mins = h * 60 + (m || 0);
+  if (mins < 360)  return 'early';      // 00:00–06:00
+  if (mins < 720)  return 'morning';    // 06:00–12:00
+  if (mins < 1080) return 'afternoon';  // 12:00–18:00
+  return 'evening';                     // 18:00–23:59
+}
+
+function applyFilters() {
+  const checkedSlots = [...document.querySelectorAll('.dep-filter:checked')].map(cb => cb.value);
+  const maxPrice     = parseInt(document.getElementById('priceRange').value);
+  const seatsFilter  = document.querySelector('input[name="seats-filter"]:checked').value;
+
+  const cards   = document.querySelectorAll('.ticket-card');
+  let visible   = 0;
+
+  cards.forEach(card => {
+    const price = parseInt(card.dataset.price);
+    const dep   = card.dataset.dep;
+    const seats = parseInt(card.dataset.seats);
+    const slot  = getDepSlot(dep);
+
+    const depOk   = checkedSlots.includes(slot);
+    const priceOk = price <= maxPrice;
+    const seatsOk = seatsFilter === 'any' || seats >= parseInt(seatsFilter);
+
+    if (depOk && priceOk && seatsOk) {
+      card.style.display = '';
+      visible++;
+    } else {
+      card.style.display = 'none';
+    }
+  });
+
+  // Update count
+  const countEl = document.querySelector('.result-count');
+  if (countEl) {
+    countEl.innerHTML = `Showing <strong>${visible} result${visible !== 1 ? 's' : ''}</strong> from {{ frm }} to {{ to }}
+      <span style="font-size:.78rem;color:var(--muted);margin-left:8px;">(filtered from {{ results|length }})</span>`;
+  }
+
+  // No results message
+  let noMsg = document.getElementById('no-filter-msg');
+  if (visible === 0) {
+    if (!noMsg) {
+      noMsg = document.createElement('div');
+      noMsg.id = 'no-filter-msg';
+      noMsg.className = 'card';
+      noMsg.style = 'text-align:center;padding:36px;margin-top:8px;';
+      noMsg.innerHTML = `<div style="font-size:2.5rem;margin-bottom:12px;">🔍</div>
+        <h3>No results match your filters</h3>
+        <p style="color:var(--muted);margin-top:8px;">Try adjusting the filters or reset them.</p>`;
+      document.querySelector('.ticket-card')?.parentNode.appendChild(noMsg);
+    }
+    noMsg.style.display = '';
+  } else if (noMsg) {
+    noMsg.style.display = 'none';
+  }
+
+  // Button pulse feedback
+  const btn = document.getElementById('showResultsBtn');
+  btn.innerHTML = `<i class="fas fa-check"></i> ${visible} Results Shown`;
+  setTimeout(() => { btn.innerHTML = '<i class="fas fa-search"></i> Show Results'; }, 1800);
+}
+
+function resetFilters() {
+  document.querySelectorAll('.dep-filter').forEach(cb => cb.checked = true);
+  document.getElementById('priceRange').value = 15000;
+  document.getElementById('priceLabel').textContent = '₹0 – ₹15,000';
+  document.querySelector('input[name="seats-filter"][value="any"]').checked = true;
+  applyFilters();
+}
+
+/* ── Modal Logic ── */
+let currentPrice = 0;
+
+function openModal(id, name, dep, arr, dur, price, frm, to, date, cls, flightno) {
+  currentPrice = parseInt(price);
+  document.getElementById('modal_id').value       = id;
+  document.getElementById('modal_name').value     = name;
+  document.getElementById('modal_dep').value      = dep;
+  document.getElementById('modal_arr').value      = arr;
+  document.getElementById('modal_dur').value      = dur;
+  document.getElementById('modal_price').value    = price;
+  document.getElementById('modal_date').value     = date;
+  document.getElementById('modal_class').value    = cls;
+  document.getElementById('modal_flightno').value = flightno || '';
+  document.getElementById('tripSummary').innerHTML =
+    `<strong>${name}</strong>${flightno ? ' <span style="color:var(--muted)">(' + flightno + ')</span>' : ''} &nbsp;·&nbsp; ${frm} → ${to}<br>
+     <span style="color:var(--muted)">${dep} → ${arr} &nbsp;·&nbsp; ${dur} &nbsp;·&nbsp; ${date} &nbsp;·&nbsp; ${cls}</span>`;
+  updateTotal();
+  document.getElementById('bookModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('bookModal').classList.remove('open');
+}
+
+function updateTotal() {
+  const pax = parseInt(document.getElementById('modal_pax').value) || 1;
+  document.getElementById('totalAmount').textContent = '₹' + (currentPrice * pax).toLocaleString('en-IN');
+}
+
+document.getElementById('bookModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+</script>
+{% endblock %}
